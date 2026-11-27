@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AevumPay — Agent-to-Agent Stablecoin Payments</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0e17; color:#e7ecf5; font-family:'Segoe UI',system-ui,sans-serif; line-height:1.6; }
+  .wrap { max-width:960px; margin:0 auto; padding:48px 24px; }
+  header { border-bottom:1px solid #1d2437; padding-bottom:24px; margin-bottom:36px; }
+  h1 { font-size:2.1rem; background:linear-gradient(90deg,#4f8cff,#9d5cff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .tag { color:#8b94a8; margin-top:6px; }
+  .badge { display:inline-block; background:#16213a; border:1px solid #2a3a63; color:#7fa4ff; border-radius:20px; padding:3px 12px; font-size:.78rem; margin-right:8px; }
+  h2 { color:#9d5cff; margin:32px 0 12px; font-size:1.25rem; }
+  p { margin-bottom:12px; color:#c4cbd9; }
+  .card { background:#111827; border:1px solid #1d2437; border-radius:12px; padding:20px; margin:14px 0; }
+  .flow { display:flex; gap:12px; flex-wrap:wrap; margin:16px 0; }
+  .step { flex:1; min-width:200px; background:#111827; border:1px solid #1d2437; border-radius:10px; padding:16px; }
+  .step b { color:#4f8cff; display:block; margin-bottom:6px; }
+  code, pre { background:#0d1220; border-radius:6px; font-family:'Cascadia Code',Consolas,monospace; font-size:.85rem; }
+  code { padding:2px 6px; }
+  pre { padding:14px; overflow-x:auto; border:1px solid #1d2437; margin:10px 0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; }
+  th, td { border:1px solid #1d2437; padding:8px 12px; text-align:left; font-size:.9rem; }
+  th { background:#111827; color:#7fa4ff; }
+  .status { display:inline-block; padding:2px 10px; border-radius:12px; font-size:.78rem; font-weight:600; }
+  .live { background:#0f2a1a; color:#4ade80; }
+  .pending { background:#2a210f; color:#fbbf24; }
+  footer { margin-top:48px; border-top:1px solid #1d2437; padding-top:20px; color:#6b7280; font-size:.85rem; }
+  a { color:#4f8cff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚡ AevumPay</h1>
+    <p class="tag">Agent-to-agent stablecoin payments on QDay Aevum — ERC-8004 identity, tUSD8 settlement, gasless EIP-3009 clients.</p>
+    <div style="margin-top:12px">
+      <span class="badge">Aevum Builder Challenge #1</span>
+      <span class="badge">Chain 44005</span>
+      <span class="badge">tUSD8 · 6 decimals</span>
+      <span class="badge">ERC-8004</span>
+    </div>
+  </header>
+
+  <h2>What it is</h2>
+  <p>An AI agent registered under <code>ERC-8004 Trustless Agents</code> lists a priced service on-chain. Any client — a human wallet or <em>another agent</em> — pays <strong>tUSD8</strong> per completed job. The payment receipt (<code>JobPaid</code> event) is bound to the agent's identity, so money flow becomes a verifiable reputation trail.</p>
+
+  <div class="card">
+    <strong>Deployment status</strong><br>
+    Contracts: built &amp; tested (5/5 unit, fork test vs real tUSD8 pass)<br>
+    Aevum testnet deploy: <span class="status pending">PENDING — awaiting test faucet gas</span><br>
+    Live demo: <span class="status pending">follows deploy</span>
+  </div>
+
+  <h2>Payment flows</h2>
+  <div class="flow">
+    <div class="step"><b>1 · Direct</b><code>pay(jobId, agentId, requestHash)</code><br><small>Client approves AgentPay, one tx. Client pays gas.</small></div>
+    <div class="step"><b>2 · Gasless</b><code>payWithAuthorization(...)</code><br><small>Client signs EIP-3009 off-chain. <strong>Any relayer</strong> submits — client agent needs zero tQDAY.</small></div>
+  </div>
+
+  <h2>Why agents (ERC-8004)</h2>
+  <p>The ERC-8004 Identity Registry gives every agent a portable on-chain identity (<code>agentId</code>), an owner, and an <code>agentWallet</code> for receiving payments. AgentPay reads the registry:</p>
+  <pre>setOffer(agentId, price, active)   // requires registry.ownerOf(agentId) == msg.sender
+payout → registry.getAgentWallet(agentId) ?? ownerOf(agentId)</pre>
+  <p>So service listings and payouts are anchored to a trust-minimized identity — cross-organization clients can verify who they're paying before they pay. A later version plugs ERC-8004 validation (stake-secured re-execution) on top of the <code>requestHash</code> commitment for dispute resolution.</p>
+
+  <h2>Economics</h2>
+  <table>
+    <tr><th>Item</th><th>Value</th></tr>
+    <tr><td>Service price</td><td>set per agent (example: 5 tUSD8/job)</td></tr>
+    <tr><td>Protocol fee</td><td>50 bps (0.5%) → treasury</td></tr>
+    <tr><td>Agent receives</td><td>99.5% straight to <code>agentWallet</code></td></tr>
+    <tr><td>Gas (direct)</td><td>≈1 tQDAY covers hundreds of calls</td></tr>
+    <tr><td>Gas (gasless)</td><td>0 for the client — relayer submits</td></tr>
+  </table>
+
+  <h2>Contract interface</h2>
+  <pre>interface IAgentPay {
+    function setOffer(uint256 agentId, uint256 price, bool active) external;
+    function pay(bytes32 jobId, uint256 agentId, bytes32 requestHash) external;
+    function payWithAuthorization(
+        bytes32 jobId, uint256 agentId, address from, bytes32 requestHash,
+        uint256 validAfter, uint256 validBefore, uint8 v, bytes32 r, bytes32 s) external;
+    function offers(uint256 agentId) external view returns (uint256 price, bool active);
+    function jobs(bytes32 jobId) external view returns (
+        uint256 agentId, address client, uint256 amount, uint64 paidAt, bytes32 requestHash);
+    function totalEarned(uint256 agentId) external view returns (uint256);
+    function jobCount(uint256 agentId) external view returns (uint256);
+}</pre>
+
+  <h2>Verified on Aevum so far</h2>
+  <table>
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>tUSD8 present at <code>0x4565…3483</code>, code &amp; balanceOf readable via <code>rpc-test.qday.info</code></td><td><span class="status live">PASS</span> (fork test)</td></tr>
+    <tr><td>Shanghai-safe bytecode (no MCOPY/TSTORE/blob opcodes)</td><td><span class="status live">PASS</span></td></tr>
+    <tr><td>Unit tests: direct pay, replay guard, owner-only offers, inactive-offer guard, gasless EIP-3009 path</td><td><span class="status live">5/5 PASS</span></td></tr>
+    <tr><td>Deployment + demo transactions</td><td><span class="status pending">blocked on faucet</span></td></tr>
+  </table>
+
+  <h2>Run it yourself</h2>
+  <pre>git clone https://github.com/xadro23/aevum-agentpay
+cd aevum-agentpay/contracts && forge build && forge test
+# fork demo (real tUSD8, no funds needed):
+anvil --fork-url https://rpc-test.qday.info --hardfork shanghai --chain-id 440050
+forge script script/Deploy.s.sol --fork-url http://127.0.0.1:8555 ...</pre>
+
+  <footer>
+    AevumPay v0.1 · MIT License · built for the QDay Aevum Builder Challenge #1 · github.com/xadro23/aevum-agentpay
+  </footer>
+</div>
+</body>
+</html>

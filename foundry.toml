@@ -1,0 +1,15 @@
+[profile.default]
+src = "contracts/src"
+out = "contracts/out"
+libs = ["contracts/lib"]
+solc_version = "0.8.24"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  "@openzeppelin/contracts/=contracts/lib/openzeppelin-contracts/contracts/",
+  "forge-std/=contracts/lib/forge-std/src/",
+]
+
+[rpc_endpoints]
+aevum = "https://rpc-test.qday.info"
